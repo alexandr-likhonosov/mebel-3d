@@ -41,45 +41,50 @@ function drawRoom(){
 function buildCabinet(m,index){
  const g=new THREE.Group(),w=m.w/1000,h=m.h/1000,d=m.d/1000,t=(m.thickness||16)/1000,body=m.body,front=m.front;
  const facadeT=(m.facadeThickness||19)/1000,gap=(m.facadeGap??3)/1000;
- if(m.type==='corner-right'||m.type==='corner-left'){
-  mesh(g,t,h,d,-w/2+t/2,h/2,0,body,index);mesh(g,t,h,d,w/2-t/2,h/2,0,body,index);
-  mesh(g,w-2*t,t,d,0,t/2,0,body,index);mesh(g,w-2*t,t,d,0,h-t/2,0,body,index);
-  const panelW=(m.falsePanelWidth||560)/1000,doorW=Math.max(.05,w-panelW-2*gap),faceY=gap,faceH=h-2*gap,frontZ=d/2+facadeT/2;
-  const panelX=m.type==='corner-right'?-w/2+panelW/2+gap: w/2-panelW/2-gap;
-  const doorX=m.type==='corner-right'?w/2-doorW/2-gap:-w/2+doorW/2+gap;
-  mesh(g,panelW,faceH,facadeT,panelX,faceY+faceH/2,frontZ,body,index);
-  mesh(g,doorW,faceH,facadeT,doorX,faceY+faceH/2,frontZ,front,index);
-  g.position.set(m.x/1000,m.y/1000,m.z/1000);g.rotation.y=m.rot||0;return g;
- }
+ const isCorner=m.type==='corner-right'||m.type==='corner-left';
  mesh(g,t,h,d,-w/2+t/2,h/2,0,body,index);mesh(g,t,h,d,w/2-t/2,h/2,0,body,index);
  mesh(g,w-2*t,t,d,0,t/2,0,body,index);
- if(m.type==='lower'){
+ if(isCorner){
+  mesh(g,w-2*t,t,d,0,h-t/2,0,body,index);
+ }else if(m.type==='lower'){
   const railH=.07,railZ=d/2-t/2;
   mesh(g,w-2*t,railH,t,0,h-railH/2,-railZ,body,index);
   mesh(g,w-2*t,railH,t,0,h-railH/2,railZ,body,index);
-  for(const x of [-w/2+.06,w/2-.06])for(const z of [-d/2+.06,d/2-.06])mesh(g,.045,.10,.045,x,-.05,z,'#343a40',index);
-  mesh(g,w+.025,.04,d+.09,0,h+.02,.045,'#d8d2c8',index);
  }else mesh(g,w-2*t,t,d,0,h-t/2,0,body,index);
- const shelfCount=Math.max(0,Math.min(12,Number(m.shelfCount??(m.type==='lower'?1:2))));
+ const shelfCount=Math.max(0,Math.min(12,Number(m.shelfCount??(m.type==='lower'||isCorner?1:2))));
  const positions=Array.isArray(m.shelfPositions)?m.shelfPositions:[];
  for(let n=0;n<shelfCount;n++){
   const sy=positions[n]!=null?clamp(Number(positions[n]),t*1000+1,m.h-t*1000-1)/1000:h*(n+1)/(shelfCount+1);
   mesh(g,w-2*t,.016,d-.02,0,sy,0,body,index);
  }
- const faceW=w-2*gap,faceBottom=gap,faceTop=h-(m.gola?0.035:gap),faceH=Math.max(.05,faceTop-faceBottom);
- const drawerMode=m.frontLayout==='drawers',drawerCount=Math.max(1,Math.min(8,Number(m.drawerCount)||3));
- const frontZ=d/2+facadeT/2;
- if(drawerMode){
+ const faceBottom=gap,faceTop=h-(m.gola?0.035:gap),faceH=Math.max(.05,faceTop-faceBottom);
+ const frontZ=d/2+facadeT/2,drawerMode=m.frontLayout==='drawers',drawerCount=Math.max(1,Math.min(8,Number(m.drawerCount)||3));
+ if(isCorner){
+  const panelW=clamp(Number(m.falsePanelWidth)||560,50,m.w-100)/1000;
+  const doorW=Math.max(.05,w-panelW-2*gap);
+  const panelX=m.type==='corner-right'?-w/2+panelW/2+gap:w/2-panelW/2-gap;
+  const doorX=m.type==='corner-right'?w/2-doorW/2-gap:-w/2+doorW/2+gap;
+  mesh(g,panelW,faceH,facadeT,panelX,faceBottom+faceH/2,frontZ,body,index);
+  if(drawerMode){
+   const each=(faceH-gap*(drawerCount-1))/drawerCount;
+   for(let n=0;n<drawerCount;n++)mesh(g,doorW,each,facadeT,doorX,faceBottom+n*(each+gap)+each/2,frontZ,front,index);
+  }else mesh(g,doorW,faceH,facadeT,doorX,faceBottom+faceH/2,frontZ,front,index);
+ }else if(drawerMode){
   const each=(faceH-gap*(drawerCount-1))/drawerCount;
-  for(let n=0;n<drawerCount;n++)mesh(g,faceW,each,facadeT,0,faceBottom+n*(each+gap)+each/2,frontZ,front,index);
+  for(let n=0;n<drawerCount;n++)mesh(g,w-2*gap,each,facadeT,0,faceBottom+n*(each+gap)+each/2,frontZ,front,index);
  }else{
-  const count=Math.max(1,Math.min(8,Number(m.facades)||1)),fw=(faceW-gap*(count-1))/count;
-  for(let n=0;n<count;n++)mesh(g,fw,faceH,facadeT,-faceW/2+fw/2+n*(fw+gap),faceBottom+faceH/2,frontZ,front,index);
+  const count=Math.max(1,Math.min(8,Number(m.facades)||1)),fw=(w-2*gap-gap*(count-1))/count;
+  for(let n=0;n<count;n++)mesh(g,fw,faceH,facadeT,-(w-2*gap)/2+fw/2+n*(fw+gap),faceBottom+faceH/2,frontZ,front,index);
  }
  if(m.gola){
   const black='#202327',profileH=.018,profileD=.028;
   mesh(g,w-2*t,profileH,profileD,0,h-.017,d/2+facadeT+.012,black,index);
-  if((m.type==='lower'&&drawerMode)||m.type==='tall')mesh(g,w-2*t,profileH,profileD,0,.4,d/2+facadeT+.012,black,index);
+  if((m.type==='lower'&&drawerMode)||m.type==='tall'||isCorner)mesh(g,w-2*t,profileH,profileD,0,(Number(m.golaMiddleY)||400)/1000,d/2+facadeT+.012,black,index);
+ }
+ if(m.type==='lower'||isCorner){
+  const legH=(Number(m.legHeight)||100)/1000,legW=.04;
+  for(const x of [-w/2+.055,w/2-.055])for(const z of [-d/2+.055,d/2-.055])mesh(g,legW,legH,legW,x,-legH/2,z,'#343a40',index);
+  if(m.tabletop!==false)mesh(g,w+.025,.04,d+.09,0,h+.02,.045,m.tabletopColor||'#d8d2c8',index);
  }
  g.position.set(m.x/1000,m.y/1000,m.z/1000);g.rotation.y=m.rot||0;return g;
 }
@@ -87,20 +92,20 @@ function drawModules(){modulesGroup.clear();modules.forEach((m,i)=>{const g=buil
 function draw(){drawRoom();drawModules();renderList();renderEditor();stats();scheduleAutosave()}
 function stats(){$('count').textContent=modules.length;$('roomStat').textContent=room.w+' × '+room.d;$('selectedStat').textContent=selected>=0?modules[selected].name:'—'}
 function renderList(){$('list').innerHTML=modules.map((m,i)=>'<div class="item"><button data-select="'+i+'" class="'+(i===selected?'selected':'')+'">'+m.name+'<br><small>'+m.w+' × '+m.h+' × '+m.d+' мм</small></button><button data-remove="'+i+'" title="Удалить">×</button></div>').join('')||'<p class="hint">Добавь первый корпус.</p>';document.querySelectorAll('[data-select]').forEach(b=>b.onclick=()=>select(Number(b.dataset.select)));document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>remove(Number(b.dataset.remove)))}
-function editorMarkup(){if(selected<0||!modules[selected])return '<p class="hint">Выбери шкаф в сцене или списке.</p>';const m=modules[selected];const field=(key,label)=>'<div class="field"><label>'+label+'</label><input type="number" data-key="'+key+'" value="'+m[key]+'"></div>';return '<div class="field"><label>Тип установки</label><select data-key="wall"><option '+(m.wall==='Задняя'?'selected':'')+'>Задняя</option><option '+(m.wall==='Левая'?'selected':'')+'>Левая</option><option '+(m.wall==='Правая'?'selected':'')+'>Правая</option></select></div>'+field('w','Ширина, мм')+field('h','Высота, мм')+field('d','Глубина, мм')+field('x','Положение X, мм')+field('y','Высота от пола, мм')+field('z','Положение Z, мм')+field('facades','Количество фасадов')+field('thickness','Толщина ЛДСП, мм')+field('shelfCount','Количество полок')+'<div class="field"><label>Толщина фасада, мм</label><input type="number" data-key="facadeThickness" value="'+(m.facadeThickness||19)+'"></div><div class="field"><label>Зазор фасадов, мм</label><input type="number" data-key="facadeGap" value="'+(m.facadeGap??3)+'"></div><div class="field"><label>Тип фасадов</label><select data-key="frontLayout"><option value="doors" '+(m.frontLayout!=='drawers'?'selected':'')+'>Двери</option><option value="drawers" '+(m.frontLayout==='drawers'?'selected':'')+'>Ящики</option></select></div><div class="field"><label>Количество ящиков</label><input type="number" data-key="drawerCount" value="'+(m.drawerCount||3)+'"></div><div class="field"><label>Gola</label><select data-key="gola"><option value="false" '+(!m.gola?'selected':'')+'>Без Gola</option><option value="true" '+(m.gola?'selected':'')+'>Чёрная Gola</option></select></div>'+'<div class="field"><label>Корпус</label><select data-key="body">'+[['#b9a98e','Дуб'],['#f1eee6','Белый'],['#b8b9b6','Серый'],['#494d52','Графит']].map(a=>'<option value="'+a[0]+'" '+(m.body===a[0]?'selected':'')+'>'+a[1]+'</option>').join('')+'</select></div><div class="field"><label>Фасады</label><select data-key="front">'+[['#e9e5dc','Тёплый белый'],['#b99a73','Дуб'],['#777d83','Серый'],['#30343a','Графит']].map(a=>'<option value="'+a[0]+'" '+(m.front===a[0]?'selected':'')+'>'+a[1]+'</option>').join('')+'</select></div><div class="row"><button id="duplicate">Копировать</button><button id="rotate">Повернуть 90°</button><button id="deleteSelected">Удалить</button></div><p class="hint">Для перемещения нажми на корпус и удерживай палец примерно 0,4 секунды, затем веди по экрану.</p>'}
-function renderEditor(){const root=$('editor');root.innerHTML=editorMarkup();root.querySelectorAll('[data-key]').forEach(el=>el.onchange=()=>{if(selected<0)return;const key=el.dataset.key;let v=el.value;if(['w','h','d','x','y','z','facades','thickness','shelfCount','facadeThickness','facadeGap','drawerCount'].includes(key))v=Number(v);if(key==='wall'){modules[selected].wall=v;placeOnWall(modules[selected])}else if(key==='gola')modules[selected][key]=v==='true';else modules[selected][key]=v;draw()});const d=$('duplicate');if(d)d.onclick=duplicate;const r=$('rotate');if(r)r.onclick=()=>{modules[selected].rot=(modules[selected].rot||0)+Math.PI/2;draw()};const del=$('deleteSelected');if(del)del.onclick=()=>remove(selected);}
+function editorMarkup(){if(selected<0||!modules[selected])return '<p class="hint">Выбери шкаф в сцене или списке.</p>';const m=modules[selected],isCorner=m.type==='corner-right'||m.type==='corner-left',isLower=m.type==='lower'||isCorner;const field=(key,label)=>'<div class="field"><label>'+label+'</label><input type="number" data-key="'+key+'" value="'+(m[key]??'')+'"></div>';return '<div class="field"><label>Тип установки</label><select data-key="wall"><option '+(m.wall==='Задняя'?'selected':'')+'>Задняя</option><option '+(m.wall==='Левая'?'selected':'')+'>Левая</option><option '+(m.wall==='Правая'?'selected':'')+'>Правая</option></select></div>'+field('w','Ширина, мм')+field('h','Высота, мм')+field('d','Глубина, мм')+field('x','Положение X, мм')+field('y','Высота от пола, мм')+field('z','Положение Z, мм')+(isCorner?field('falsePanelWidth','Ширина фальшпанели, мм'):'')+field('facades','Количество фасадов')+field('thickness','Толщина ЛДСП, мм')+field('shelfCount','Количество полок')+'<div class="field"><label>Толщина фасада, мм</label><input type="number" data-key="facadeThickness" value="'+(m.facadeThickness||19)+'"></div><div class="field"><label>Зазор фасадов, мм</label><input type="number" data-key="facadeGap" value="'+(m.facadeGap??3)+'"></div><div class="field"><label>Тип фасадов</label><select data-key="frontLayout"><option value="doors" '+(m.frontLayout!=='drawers'?'selected':'')+'>Двери</option><option value="drawers" '+(m.frontLayout==='drawers'?'selected':'')+'>Ящики</option></select></div><div class="field"><label>Количество ящиков</label><input type="number" data-key="drawerCount" value="'+(m.drawerCount||3)+'"></div><div class="field"><label>Gola</label><select data-key="gola"><option value="false" '+(!m.gola?'selected':'')+'>Без Gola</option><option value="true" '+(m.gola?'selected':'')+'>Чёрная Gola</option></select></div>'+(isLower?field('legHeight','Высота ножек, мм')+'<div class="field"><label>Столешница</label><select data-key="tabletop"><option value="true" '+(m.tabletop!==false?'selected':'')+'>Есть</option><option value="false" '+(m.tabletop===false?'selected':'')+'>Нет</option></select></div>':'')+'<div class="field"><label>Корпус</label><select data-key="body">'+[['#b9a98e','Дуб'],['#f1eee6','Белый'],['#b8b9b6','Серый'],['#494d52','Графит']].map(a=>'<option value="'+a[0]+'" '+(m.body===a[0]?'selected':'')+'>'+a[1]+'</option>').join('')+'</select></div><div class="field"><label>Фасады</label><select data-key="front">'+[['#e9e5dc','Тёплый белый'],['#b99a73','Дуб'],['#777d83','Серый'],['#30343a','Графит']].map(a=>'<option value="'+a[0]+'" '+(m.front===a[0]?'selected':'')+'>'+a[1]+'</option>').join('')+'</select></div><div class="row"><button id="duplicate">Копировать</button><button id="rotate">Повернуть 90°</button><button id="deleteSelected">Удалить</button></div><p class="hint">Для перемещения удерживай корпус около 0,4 секунды, затем веди. Привязка к выбранной стене сохраняется.</p>'}
+function renderEditor(){const root=$('editor');root.innerHTML=editorMarkup();root.querySelectorAll('[data-key]').forEach(el=>el.onchange=()=>{if(selected<0)return;const key=el.dataset.key;let v=el.value;if(['w','h','d','x','y','z','facades','thickness','shelfCount','facadeThickness','facadeGap','drawerCount','falsePanelWidth','legHeight'].includes(key))v=Number(v);if(key==='wall'){modules[selected].wall=v;placeOnWall(modules[selected])}else if(key==='gola'||key==='tabletop')modules[selected][key]=v==='true';else modules[selected][key]=v;draw()});const d=$('duplicate');if(d)d.onclick=duplicate;const r=$('rotate');if(r)r.onclick=()=>{modules[selected].rot=(modules[selected].rot||0)+Math.PI/2;draw()};const del=$('deleteSelected');if(del)del.onclick=()=>remove(selected);}
 function select(i){selected=i;draw()}
 function remove(i){if(i<0||i>=modules.length)return;modules.splice(i,1);selected=modules.length?Math.min(i,modules.length-1):-1;draw()}
 function duplicate(){if(selected<0)return;const m={...modules[selected],shelfPositions:[...(modules[selected].shelfPositions||[])],name:modules[selected].name+' копия',x:modules[selected].x+180,z:modules[selected].z+180};modules.push(m);select(modules.length-1)}
 function placeOnWall(m){const w=room.w,d=room.d;if(m.wall==='Задняя'){m.rot=0;m.z=-d/2+m.d/2}if(m.wall==='Левая'){m.rot=Math.PI/2;m.x=-w/2+m.d/2}if(m.wall==='Правая'){m.rot=-Math.PI/2;m.x=w/2-m.d/2}}
-function add(type){const n=modules.filter(m=>m.type===type).length+1;const isCorner=type==='corner-right'||type==='corner-left';const m={name:(type==='lower'?'Нижний ':type==='upper'?'Верхний ':type==='tall'?'Пенал ':type==='corner-right'?'Угловой правый ':'Угловой левый ')+n,type,w:isCorner?1000:600,h:type==='lower'||isCorner?760:type==='upper'?900:2200,d:isCorner?510:type==='lower'?510:type==='upper'?320:560,falsePanelWidth:560,x:0,y:type==='lower'?100:type==='upper'?1500:0,z:0,wall:'Задняя',rot:0,facades:2,thickness:16,shelfCount:type==='lower'||isCorner?1:2,shelfPositions:[],facadeMaterial:'painted_mdf',facadeThickness:19,facadeGap:3,frontLayout:'doors',drawerCount:3,gola:false,body:'#b9a98e',front:'#e9e5dc'};placeOnWall(m);let x=-room.w/2+m.w/2+20;modules.filter(o=>o.wall==='Задняя'&&type===o.type).forEach(o=>x=Math.max(x,o.x+o.w/2+m.w/2+20));if(x+m.w/2>room.w/2)x=-room.w/2+m.w/2+20;m.x=x;if(type==='upper')m.y=1500;modules.push(m);select(modules.length-1)}
+function add(type){const n=modules.filter(m=>m.type===type).length+1;const isCorner=type==='corner-right'||type==='corner-left';const m={name:(type==='lower'?'Нижний ':type==='upper'?'Верхний ':type==='tall'?'Пенал ':type==='corner-right'?'Угловой правый ':'Угловой левый ')+n,type,w:isCorner?1000:600,h:type==='lower'||isCorner?760:type==='upper'?900:2200,d:isCorner?510:type==='lower'?510:type==='upper'?320:560,falsePanelWidth:560,legHeight:100,tabletop:true,x:0,y:type==='lower'||isCorner?100:type==='upper'?1500:0,z:0,wall:'Задняя',rot:0,facades:2,thickness:16,shelfCount:type==='lower'||isCorner?1:2,shelfPositions:[],facadeMaterial:'painted_mdf',facadeThickness:19,facadeGap:3,frontLayout:'doors',drawerCount:3,gola:false,body:'#b9a98e',front:'#e9e5dc'};placeOnWall(m);let x=-room.w/2+m.w/2+20;modules.filter(o=>o.wall==='Задняя'&&type===o.type).forEach(o=>x=Math.max(x,o.x+o.w/2+m.w/2+20));if(x+m.w/2>room.w/2)x=-room.w/2+m.w/2+20;m.x=x;if(type==='upper')m.y=1500;modules.push(m);select(modules.length-1)}
 function applyRoom(){room.w=clamp(Number($('rw').value)||3000,1200,10000);room.d=clamp(Number($('rd').value)||3000,1200,10000);room.h=clamp(Number($('rh').value)||2700,2000,5000);$('rw').value=room.w;$('rd').value=room.d;$('rh').value=room.h;modules.forEach(placeOnWall);draw();fit()}
 function fit(){const r=Math.max(room.w,room.d,room.h)/1000;controls.target.set(0,room.h/2200,0);camera.position.set(r*1.25,r*.9,-r*1.6);camera.near=.05;camera.far=200;camera.updateProjectionMatrix();controls.update()}
 function setView(kind){const t=controls.target.clone(),dist=Math.max(3,camera.position.distanceTo(t));if(kind==='front')camera.position.set(t.x,t.y,t.z-dist);if(kind==='side')camera.position.set(t.x+dist,t.y,t.z);if(kind==='top')camera.position.set(t.x,t.y+dist,t.z-.01);if(kind==='iso')camera.position.set(t.x+dist*.8,t.y+dist*.65,t.z-dist);camera.lookAt(t);controls.update()}
 function setMove(){controls.enabled=true;$('mode').textContent='Камера';$('mode').classList.add('active')}
 function ndc(e){const r=renderer.domElement.getBoundingClientRect();return new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1)}
 function pointerDown(e){raycaster.setFromCamera(ndc(e),camera);const hit=raycaster.intersectObjects(modulesGroup.children,true).find(h=>h.object.userData.moduleIndex>=0);if(!hit)return;const idx=hit.object.userData.moduleIndex;select(idx);pendingPress={id:e.pointerId,x:e.clientX,y:e.clientY,index:idx};pendingPress.timer=setTimeout(()=>{if(!pendingPress||pendingPress.id!==e.pointerId)return;const m=modules[idx];raycaster.setFromCamera(ndc({clientX:pendingPress.x,clientY:pendingPress.y}),camera);const plane=new THREE.Plane(new THREE.Vector3(0,1,0),-m.y/1000),p=new THREE.Vector3();if(!raycaster.ray.intersectPlane(plane,p))return;controls.enabled=false;drag={id:e.pointerId,dx:m.x/1000-p.x,dz:m.z/1000-p.z};renderer.domElement.setPointerCapture(e.pointerId);pendingPress.started=true},420)}
-function footprint(m){const quarter=Math.round((m.rot||0)/(Math.PI/2));const swap=Math.abs(quarter)%2===1;return {w:(swap?m.d:m.w)/2,d:(swap?m.w:m.d)/2}}
+function footprint(m){const quarter=Math.round((m.rot||0)/(Math.PI/2));const swap=Math.abs(quarter)%2===1;return {w:(swap?m.d:m.w)/2,d:(swap?m.w:m.d)/2}}\nfunction constrainToWall(m,x,z){const f=footprint({...m,x,z}),pad=10;let nx=x,nz=z;if(m.wall==='Задняя'){nz=-room.d/2+f.d;nz=Math.max(-room.d/2+f.d,Math.min(room.d/2-f.d,nz));nx=clamp(x,-room.w/2+f.w+pad,room.w/2-f.w-pad)}else if(m.wall==='Левая'){nx=-room.w/2+f.w;nx=Math.max(-room.w/2+f.w,Math.min(room.w/2-f.w,nx));nz=clamp(z,-room.d/2+f.d+pad,room.d/2-f.d-pad)}else if(m.wall==='Правая'){nx=room.w/2-f.w;nx=Math.max(-room.w/2+f.w,Math.min(room.w/2-f.w,nx));nz=clamp(z,-room.d/2+f.d+pad,room.d/2-f.d-pad)}return {x:Math.round(nx),z:Math.round(nz)}}
 function boxesOverlap(a,b){const A=footprint(a),B=footprint(b);const vertical=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);return Math.abs(a.x-b.x)<A.w+B.w-1&&Math.abs(a.z-b.z)<A.d+B.d-1&&vertical>1}
 function positionIsFree(candidate,m){return modules.every(other=>other===m||!boxesOverlap(candidate,other))}
 function snapAndCheck(m,x,z){
@@ -122,7 +127,7 @@ function snapAndCheck(m,x,z){
  if(valid.length){valid.sort((p,q)=>Math.hypot(p.x-x,p.z-z)-Math.hypot(q.x-x,q.z-z));return valid[0]}
  return positionIsFree(raw,m)?raw:null;
 }
-function pointerMove(e){if(pendingPress&&pendingPress.id===e.pointerId&&!pendingPress.started&&Math.hypot(e.clientX-pendingPress.x,e.clientY-pendingPress.y)>12){clearTimeout(pendingPress.timer);pendingPress=null}if(!drag||drag.id!==e.pointerId)return;raycaster.setFromCamera(ndc(e),camera);const m=modules[selected],plane=new THREE.Plane(new THREE.Vector3(0,1,0),-m.y/1000),p=new THREE.Vector3();if(raycaster.ray.intersectPlane(plane,p)){const x=Math.round((p.x+drag.dx)*1000),z=Math.round((p.z+drag.dz)*1000),placed=snapAndCheck(m,x,z);if(placed){m.x=placed.x;m.z=placed.z;drawModules();renderList();stats()}}}
+function pointerMove(e){if(pendingPress&&pendingPress.id===e.pointerId&&!pendingPress.started&&Math.hypot(e.clientX-pendingPress.x,e.clientY-pendingPress.y)>12){clearTimeout(pendingPress.timer);pendingPress=null}if(!drag||drag.id!==e.pointerId)return;raycaster.setFromCamera(ndc(e),camera);const m=modules[selected],plane=new THREE.Plane(new THREE.Vector3(0,1,0),-m.y/1000),p=new THREE.Vector3();if(raycaster.ray.intersectPlane(plane,p)){const x=Math.round((p.x+drag.dx)*1000),z=Math.round((p.z+drag.dz)*1000),anchored=constrainToWall(m,x,z),placed=snapAndCheck(m,anchored.x,anchored.z);if(placed){const wallLocked=constrainToWall(m,placed.x,placed.z);const finalPos={...placed,...wallLocked};if(positionIsFree(finalPos,m)){m.x=finalPos.x;m.z=finalPos.z;drawModules();renderList();stats()}}}}
 function pointerUp(e){if(pendingPress&&pendingPress.id===e.pointerId){clearTimeout(pendingPress.timer);pendingPress=null}if(drag&&drag.id===e.pointerId){drag=null;controls.enabled=true;scheduleAutosave();if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId)}}
 function projectData(){return {version:1,room:{...room},modules:modules.map(m=>({...m,shelfPositions:[...(m.shelfPositions||[])]}))}}
 function save(silent=false){const data=JSON.stringify(projectData());try{localStorage.setItem('mebel3d-project',data);if(!silent)alert('Проект сохранён на этом устройстве.')}catch(e){if(!silent)alert('Не удалось сохранить проект. Возможно, недостаточно места в памяти устройства.');console.error(e)}}
