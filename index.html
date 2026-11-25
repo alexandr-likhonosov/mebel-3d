@@ -124,7 +124,8 @@ function setView(kind){const t=controls.target.clone(),dist=Math.max(3,camera.po
 function setMove(){controls.enabled=true;$('mode').textContent='Камера';$('mode').classList.add('active')}
 function ndc(e){const r=renderer.domElement.getBoundingClientRect();return new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1)}
 function pointerDown(e){raycaster.setFromCamera(ndc(e),camera);const hit=raycaster.intersectObjects(modulesGroup.children,true).find(h=>h.object.userData.moduleIndex>=0);if(!hit)return;const idx=hit.object.userData.moduleIndex;select(idx);pendingPress={id:e.pointerId,x:e.clientX,y:e.clientY,index:idx};pendingPress.timer=setTimeout(()=>{if(!pendingPress||pendingPress.id!==e.pointerId)return;const m=modules[idx];raycaster.setFromCamera(ndc({clientX:pendingPress.x,clientY:pendingPress.y}),camera);const plane=new THREE.Plane(new THREE.Vector3(0,1,0),-m.y/1000),p=new THREE.Vector3();if(!raycaster.ray.intersectPlane(plane,p))return;controls.enabled=false;drag={id:e.pointerId,dx:m.x/1000-p.x,dz:m.z/1000-p.z};renderer.domElement.setPointerCapture(e.pointerId);pendingPress.started=true},420)}
-function footprint(m){const quarter=Math.round((m.rot||0)/(Math.PI/2));const swap=Math.abs(quarter)%2===1;return {w:(swap?m.d:m.w)/2,d:(swap?m.w:m.d)/2}}\nfunction constrainToWall(m,x,z){
+function footprint(m){const quarter=Math.round((m.rot||0)/(Math.PI/2));const swap=Math.abs(quarter)%2===1;return {w:(swap?m.d:m.w)/2,d:(swap?m.w:m.d)/2}}
+function constrainToWall(m,x,z){
  const wallT=45,halfWall=wallT/2,f=footprint({...m,x,z}),pad=10;let nx=x,nz=z;
  if(m.wall==='Задняя'){nz=-room.d/2+halfWall+f.d;nx=clamp(x,-room.w/2+f.w+pad,room.w/2-f.w-pad)}
  else if(m.wall==='Левая'){nx=-room.w/2+halfWall+f.w;nz=clamp(z,-room.d/2+f.d+pad,room.d/2-f.d-pad)}
