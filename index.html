@@ -123,7 +123,7 @@ function fit(){const r=Math.max(room.w,room.d,room.h)/1000;controls.target.set(0
 function setView(kind){const t=controls.target.clone(),dist=Math.max(3,camera.position.distanceTo(t));if(kind==='front')camera.position.set(t.x,t.y,t.z-dist);if(kind==='side')camera.position.set(t.x+dist,t.y,t.z);if(kind==='top')camera.position.set(t.x,t.y+dist,t.z-.01);if(kind==='iso')camera.position.set(t.x+dist*.8,t.y+dist*.65,t.z-dist);camera.lookAt(t);controls.update()}
 function setMove(){controls.enabled=true;$('mode').textContent='Камера';$('mode').classList.add('active')}
 function ndc(e){const r=renderer.domElement.getBoundingClientRect();return new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1)}
-function pointerDown(e){raycaster.setFromCamera(ndc(e),camera);const hit=raycaster.intersectObjects(modulesGroup.children,true).find(h=>h.object.userData.moduleIndex>=0);if(!hit)return;const idx=hit.object.userData.moduleIndex;select(idx);pendingPress={id:e.pointerId,x:e.clientX,y:e.clientY,index:idx};pendingPress.timer=setTimeout(()=>{if(!pendingPress||pendingPress.id!==e.pointerId)return;const m=modules[idx];raycaster.setFromCamera(ndc({clientX:pendingPress.x,clientY:pendingPress.y}),camera);const plane=new THREE.Plane(new THREE.Vector3(0,1,0),-m.y/1000),p=new THREE.Vector3();if(!raycaster.ray.intersectPlane(plane,p))return;controls.enabled=false;drag={id:e.pointerId,dx:m.x/1000-p.x,dz:m.z/1000-p.z};renderer.domElement.setPointerCapture(e.pointerId);pendingPress.started=true},420)}
+function pointerDown(e){raycaster.setFromCamera(ndc(e),camera);const hit=raycaster.intersectObjects(modulesGroup.children,true).find(h=>h.object.userData.moduleIndex>=0);if(!hit)return;const idx=hit.object.userData.moduleIndex;select(idx);pendingPress={id:e.pointerId,x:e.clientX,y:e.clientY,index:idx};pendingPress.timer=setTimeout(()=>{if(!pendingPress||pendingPress.id!==e.pointerId)return;const m=modules[idx];raycaster.setFromCamera(ndc({clientX:pendingPress.x,clientY:pendingPress.y}),camera);const plane=new THREE.Plane(new THREE.Vector3(0,1,0),-m.y/1000),p=new THREE.Vector3();if(!raycaster.ray.intersectPlane(plane,p))return;controls.enabled=false;drag={id:e.pointerId,index:idx,dx:m.x/1000-p.x,dz:m.z/1000-p.z};renderer.domElement.setPointerCapture(e.pointerId);pendingPress.started=true},420)}
 function footprint(m){const quarter=Math.round((m.rot||0)/(Math.PI/2));const swap=Math.abs(quarter)%2===1;return {w:(swap?m.d:m.w)/2,d:(swap?m.w:m.d)/2}}
 function constrainToWall(m,x,z){
  const wallT=45,halfWall=wallT/2,f=footprint({...m,x,z}),pad=10;let nx=x,nz=z;
@@ -133,7 +133,14 @@ function constrainToWall(m,x,z){
  return {x:Math.round(nx),z:Math.round(nz)};
 }
 function boxesOverlap(a,b){const A=footprint(a),B=footprint(b);const vertical=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);return Math.abs(a.x-b.x)<A.w+B.w-1&&Math.abs(a.z-b.z)<A.d+B.d-1&&vertical>1}
-function positionIsFree(candidate,m){return modules.every(other=>other===m||!boxesOverlap(candidate,other))}
+function overlapScore(candidate,m){
+ let score=0;for(const other of modules){if(other===m)continue;const A=footprint(candidate),B=footprint(other);
+ const ox=Math.max(0,A.w+B.w-Math.abs(candidate.x-other.x)),oz=Math.max(0,A.d+B.d-Math.abs(candidate.z-other.z));
+ const oy=Math.max(0,Math.min(candidate.y+candidate.h,other.y+other.h)-Math.max(candidate.y,other.y));
+ if(ox>0&&oz>0&&oy>0)score+=ox*oz*oy;
+ }return score;
+}
+function positionIsFree(candidate,m){return overlapScore(candidate,m)===0}
 function snapAndCheck(m,x,z){
  const raw={...m,x,z},threshold=65,a=footprint(raw),candidates=[];
  // Предлагаем только одноосевые привязки: бок к боку либо задняя/передняя плоскость.
@@ -153,7 +160,11 @@ function snapAndCheck(m,x,z){
  if(valid.length){valid.sort((p,q)=>Math.hypot(p.x-x,p.z-z)-Math.hypot(q.x-x,q.z-z));return valid[0]}
  return positionIsFree(raw,m)?raw:null;
 }
-function pointerMove(e){if(pendingPress&&pendingPress.id===e.pointerId&&!pendingPress.started&&Math.hypot(e.clientX-pendingPress.x,e.clientY-pendingPress.y)>12){clearTimeout(pendingPress.timer);pendingPress=null}if(!drag||drag.id!==e.pointerId)return;raycaster.setFromCamera(ndc(e),camera);const m=modules[selected],plane=new THREE.Plane(new THREE.Vector3(0,1,0),-m.y/1000),p=new THREE.Vector3();if(raycaster.ray.intersectPlane(plane,p)){const x=Math.round((p.x+drag.dx)*1000),z=Math.round((p.z+drag.dz)*1000),anchored=constrainToWall(m,x,z),placed=snapAndCheck(m,anchored.x,anchored.z);if(placed){const wallLocked=constrainToWall(m,placed.x,placed.z);const finalPos={...placed,...wallLocked};if(positionIsFree(finalPos,m)){m.x=finalPos.x;m.z=finalPos.z;drawModules();renderList();stats()}}}}
+function pointerMove(e){if(pendingPress&&pendingPress.id===e.pointerId&&!pendingPress.started&&Math.hypot(e.clientX-pendingPress.x,e.clientY-pendingPress.y)>12){clearTimeout(pendingPress.timer);pendingPress=null}if(!drag||drag.id!==e.pointerId)return;raycaster.setFromCamera(ndc(e),camera);const m=modules[drag.index];if(!m)return;const plane=new THREE.Plane(new THREE.Vector3(0,1,0),-m.y/1000),p=new THREE.Vector3();if(raycaster.ray.intersectPlane(plane,p)){
+ const x=Math.round((p.x+drag.dx)*1000),z=Math.round((p.z+drag.dz)*1000),anchored=constrainToWall(m,x,z);
+ const candidate={...m,x:anchored.x,z:anchored.z},before=overlapScore(m,m),after=overlapScore(candidate,m);
+ if(after===0||after<before){m.x=candidate.x;m.z=candidate.z;drawModules();renderList();stats()}
+ }}
 function pointerUp(e){if(pendingPress&&pendingPress.id===e.pointerId){clearTimeout(pendingPress.timer);pendingPress=null}if(drag&&drag.id===e.pointerId){drag=null;controls.enabled=true;scheduleAutosave();if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId)}}
 function projectData(){return {version:1,room:{...room},modules:modules.map(m=>({...m,shelfPositions:[...(m.shelfPositions||[])]}))}}
 function save(silent=false){const data=JSON.stringify(projectData());try{localStorage.setItem('mebel3d-project',data);if(!silent)alert('Проект сохранён на этом устройстве.')}catch(e){if(!silent)alert('Не удалось сохранить проект. Возможно, недостаточно места в памяти устройства.');console.error(e)}}
